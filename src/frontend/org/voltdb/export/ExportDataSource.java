@@ -1663,18 +1663,19 @@ public class ExportDataSource implements Comparable<ExportDataSource> {
         exportLog.info("Releasing mastership for " + this);
         m_mastershipAccepted.set(false);
 
-        m_readyForPolling = false;
         m_seqNoToDrain = Long.MAX_VALUE;
         m_newLeaderHostId = null;
     }
 
     /**
      * On processor shutdown, synchronously release mastership and clear pending poll.
-     * Only called from the Catalog update path.
+     * Only called from the Catalog update path: we expect a new processor to reactivate
+     * the polling.
      */
     public void onProcessorShutdown() {
         unacceptMastership();
         m_pollTask = null;
+        m_readyForPolling = false;
     }
 
     /**
@@ -1808,6 +1809,12 @@ public class ExportDataSource implements Comparable<ExportDataSource> {
                 if (m_mastershipAccepted.get() || m_runEveryWhere) {
                     return;
                 }
+                if (m_status == StreamStatus.BLOCKED) {
+                    if (exportLog.isDebugEnabled()) {
+                        exportLog.debug(ExportDataSource.this.toString() + " skips taking mastership.");
+                    }
+                    return;
+                }
                 if (exportLog.isDebugEnabled()) {
                     exportLog.debug(ExportDataSource.this.toString() + " is going to export data because partition leader is on current node.");
                 }
@@ -1891,6 +1898,7 @@ public class ExportDataSource implements Comparable<ExportDataSource> {
                                 }
                             }
                         } else {
+                            setStatus(StreamStatus.BLOCKED);
                             // time to give up master and give it to the best candidate
                             m_newLeaderHostId = CoreUtils.getHostIdFromHSId(bestCandidate.getKey());
                             exportLog.info("Host " + m_newLeaderHostId + " has the missing export data for " + ExportDataSource.this.toString());
