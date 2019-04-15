@@ -192,6 +192,14 @@ public class TestExportDataSource extends TestCase {
         return processor;
     }
 
+    private void waitForMaster(ExportDataSource s) throws InterruptedException {
+        int i = 0;
+        while (!s.isMaster()) {
+            assertFalse(++i > 2);
+            Thread.sleep(500);
+        }
+    }
+
     public void testExportDataSource() throws Exception {
         System.out.println("Running testExportDataSource");
         String[] tables = {"TableName", "RepTableName"};
@@ -227,17 +235,9 @@ public class TestExportDataSource extends TestCase {
                 table.getPartitioncolumn(),
                 TEST_DIR.getAbsolutePath());
         try {
-            final CountDownLatch cdl = new CountDownLatch(1);
-            Runnable cdlWaiter = new Runnable() {
-
-                @Override
-                public void run() {
-                    cdl.countDown();
-                }
-            };
-            s.setOnMastership(cdlWaiter);
+            s.setReadyForPolling(true);
             s.acceptMastership();
-            cdl.await();
+            waitForMaster(s);
 
             int buffSize = 20 + StreamBlock.HEADER_SIZE;
             ByteBuffer foo = ByteBuffer.allocateDirect(buffSize);
@@ -325,19 +325,12 @@ public class TestExportDataSource extends TestCase {
                 table.getPartitioncolumn(),
                 TEST_DIR.getAbsolutePath());
         try {
-            final CountDownLatch cdl = new CountDownLatch(1);
-            Runnable cdlWaiter = new Runnable() {
-
-                @Override
-                public void run() {
-                    cdl.countDown();
-                }
-            };
-            s.setOnMastership(cdlWaiter);
+            s.setReadyForPolling(true);
             s.acceptMastership();
+            waitForMaster(s);
+
             // Set ready for polling to enable satisfying fut on push
             s.setReadyForPolling(true);
-            cdl.await();
 
             int buffSize = 20 + StreamBlock.HEADER_SIZE;
 
@@ -402,13 +395,6 @@ public class TestExportDataSource extends TestCase {
                 table.getPartitioncolumn(),
                 TEST_DIR.getAbsolutePath());
         try {
-        final CountDownLatch cdl = new CountDownLatch(1);
-        Runnable cdlWaiter = new Runnable() {
-            @Override
-            public void run() {
-                cdl.countDown();
-            }
-        };
         Mailbox mockedMbox = Mockito.mock(Mailbox.class);
         final AtomicReference<CountDownLatch> refSendCdl = new AtomicReference<CountDownLatch>(new CountDownLatch(1));
         doAnswer(new Answer<Void>() {
@@ -421,9 +407,9 @@ public class TestExportDataSource extends TestCase {
 
         s.updateAckMailboxes(Pair.<Mailbox,ImmutableList<Long>>of(mockedMbox, ImmutableList.<Long>of(42L)));
 
-        s.setOnMastership(cdlWaiter);
+        s.setReadyForPolling(true);
         s.acceptMastership();
-        cdl.await();
+        waitForMaster(s);
 
         ByteBuffer foo = ByteBuffer.allocateDirect(20 + StreamBlock.HEADER_SIZE);
         foo.duplicate().put(new byte[20]);
@@ -507,6 +493,8 @@ public class TestExportDataSource extends TestCase {
                 table.getPartitioncolumn(),
                 TEST_DIR.getAbsolutePath());
         try {
+            s.setReadyForPolling(true);
+
             //Ack before push
             s.remoteAck(100);
             TreeSet<String> listing = getSortedDirectoryListingSegments();
@@ -544,16 +532,8 @@ public class TestExportDataSource extends TestCase {
             listing = getSortedDirectoryListingSegments();
             assertEquals(listing.size(), 1);
 
-            final CountDownLatch cdl = new CountDownLatch(1);
-            Runnable cdlWaiter = new Runnable() {
-                @Override
-                public void run() {
-                    cdl.countDown();
-                }
-            };
-            s.setOnMastership(cdlWaiter);
             s.acceptMastership();
-            cdl.await();
+            waitForMaster(s);
 
             //Poll and check before and after discard segment files.
             AckingContainer cont = s.poll(false).get();
@@ -591,17 +571,9 @@ public class TestExportDataSource extends TestCase {
                 table.getPartitioncolumn(),
                 TEST_DIR.getAbsolutePath());
         try {
-            final CountDownLatch cdl = new CountDownLatch(1);
-            Runnable cdlWaiter = new Runnable() {
-
-                @Override
-                public void run() {
-                    cdl.countDown();
-                }
-            };
-            s.setOnMastership(cdlWaiter);
+            s.setReadyForPolling(true);
             s.acceptMastership();
-            cdl.await();
+            waitForMaster(s);
 
             // Push 2 buffers with contiguous sequence numbers
             int buffSize = 20 + StreamBlock.HEADER_SIZE;
@@ -675,17 +647,9 @@ public class TestExportDataSource extends TestCase {
                 table.getPartitioncolumn(),
                 TEST_DIR.getAbsolutePath());
         try {
-            final CountDownLatch cdl = new CountDownLatch(1);
-            Runnable cdlWaiter = new Runnable() {
-
-                @Override
-                public void run() {
-                    cdl.countDown();
-                }
-            };
-            s.setOnMastership(cdlWaiter);
+            s.setReadyForPolling(true);
             s.acceptMastership();
-            cdl.await();
+            waitForMaster(s);
 
             // Push 4 buffers with contiguous sequence numbers
             int buffSize = 20 + StreamBlock.HEADER_SIZE;

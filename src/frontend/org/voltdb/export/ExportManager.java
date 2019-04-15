@@ -595,7 +595,7 @@ public class ExportManager
         if (exportLog.isDebugEnabled()) {
             exportLog.debug("Processor shutdown completed, install new export processor");
         }
-        generation.unacceptMastership();
+        generation.onProcessorShutdown();
         if (exportLog.isDebugEnabled()) {
             exportLog.debug("Existing export datasources unassigned.");
         }
@@ -626,7 +626,6 @@ public class ExportManager
     private  ExportDataProcessor getNewProcessorWithProcessConfigSet(Map<String, Pair<Properties, Set<String>>> config) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
         final Class<?> loaderClass = Class.forName(m_loaderClass);
         ExportDataProcessor newProcessor = (ExportDataProcessor)loaderClass.newInstance();
-        newProcessor.addLogger(exportLog);
         newProcessor.setProcessorConfig(config);
         return newProcessor;
     }
